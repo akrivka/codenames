@@ -56,7 +56,7 @@ function Codenames() {
     </div>
 }
 
-export function BackButton() {p
+export function BackButton() {
     const navigate = useNavigate()
 
     const leaveRoom = () => {
