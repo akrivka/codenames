@@ -203,6 +203,24 @@ app
 
         res.send(JSON.stringify(room));
     })
+    .get("/get-locations", async (req, res) => {
+        // read locations.json file
+        const locations = JSON.parse(fs.readFileSync("locations.json", "utf-8"));
+
+        // send locations
+        res.send(JSON.stringify(locations));
+    })
+    .post("/update-locations", async (req, res) => {
+        console.log(req.body.locations)
+        const locations = JSON.parse(req.body.locations);
+        
+
+        // write locations.json file
+        fs.writeFileSync("locations.json", JSON.stringify(locations));
+
+        // return success
+        res.send("success");
+    })
 
 const port = 8000
 app.listen(port, () => {

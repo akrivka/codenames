@@ -1,10 +1,9 @@
-import { useNavigate, useParams } from "@solidjs/router"
+import { useParams } from "@solidjs/router"
 import { Team, Role } from "..";
 import { BackButton } from "../index.jsx"
 import Game from "./game";
 
 function RoleButton({ team, role }) {
-  const navigate = useNavigate();
   const params = useParams();
   const color = team == Team.RED ? "bg-red-500" : "bg-blue-500"
   const hoverColor = team == Team.RED ? "hover:bg-red-400" : "hover:bg-blue-400"

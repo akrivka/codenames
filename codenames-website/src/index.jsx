@@ -1,6 +1,7 @@
 /* @refresh reload */
 import Lobby from './pages/lobby';
 import Game from './pages/game';
+import LocationEdit from './pages/location-edit';
 import { render } from 'solid-js/web';
 import { Router, Route, Routes, useNavigate } from "@solidjs/router";
 import axios from "axios";
@@ -40,7 +41,7 @@ function Codenames() {
     const join = async () => {
         const roomName = document.getElementById("roomName").value;
         await axios.post(`http://${baseUrl}/create-room`, null, { params: { roomName } })
-        navigate(`/${roomName}`);
+        navigate(`/room/${roomName}`);
     }
 
     return <div class="w-full flex flex-col items-center justify-center space-y-4 pt-16">
@@ -55,7 +56,7 @@ function Codenames() {
     </div>
 }
 
-export function BackButton() {
+export function BackButton() {p
     const navigate = useNavigate()
 
     const leaveRoom = () => {
@@ -80,11 +81,8 @@ function Index() {
         <Router>
             <Routes>
                 <Route path="/" component={Codenames} />
-                <Route path="/:roomName" component={Lobby} />
-                <Route path="/:roomName/red-operative" element={<Game team={Team.RED} role={Role.OPERATIVE} />} />
-                <Route path="/:roomName/red-spymaster" element={<Game team={Team.RED} role={Role.SPYMASTER} />} />
-                <Route path="/:roomName/blue-operative" element={<Game team={Team.BLUE} role={Role.OPERATIVE} />} />
-                <Route path="/:roomName/blue-spymaster" element={<Game team={Team.BLUE} role={Role.SPYMASTER} />} />
+                <Route path="/room/:roomName" component={Lobby} />
+                <Route path="/location-edit" component={LocationEdit} />
             </Routes>
         </Router>
     )

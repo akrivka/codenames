@@ -9,7 +9,20 @@
 
 FORK
 
-- location table
+- location table (editing)
+  - screenshot OSM
+  - decide whether to use a database or a file
+  - write a simple admin board
+- try a simple static map with pinpoints using absolute positions
 - custom card reveal flow
   - codes for location
-- try a simple static map with pinpoints using absolute positions
+
+====
+What information needs to be kept about each location?
+
+Where (x, y on image)
+GPS location
+Textual comment
+Code 
+
+Could store in a json!
