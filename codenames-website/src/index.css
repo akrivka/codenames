@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'SkyFall Done Regular';
+  font-style: normal;
+  font-weight: normal;
+  src: local('SkyFall Done Regular'), url('assets/fonts/SkyFall Done.woff') format('woff');
+  }
+
+@layer components {
+  body {
+    @apply bg-rose-800 text-white;
+    font-family: Nunito, Geneva, Tahoma, sans-serif;
+  }
+
+  input {
+    @apply text-black px-1 py-0.5 rounded;
+  }
+
+  .primary-button {
+    @apply bg-orange-500 px-2 py-1 rounded hover:bg-orange-600;
+  }
+}

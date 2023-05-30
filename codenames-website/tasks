@@ -1,0 +1,15 @@
+[x] change roles to be stored in local storage not in url
+[x] update cluemaster's board
+[x] confirm screen for cluemaster giving clues
+[x] final UI cleanups
+  [x] operative view
+  [x] card design
+[x] log
+- sounds for changing turns
+
+FORK
+
+- location table
+- custom card reveal flow
+  - codes for location
+- try a simple static map with pinpoints using absolute positions
