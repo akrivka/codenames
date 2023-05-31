@@ -9,6 +9,7 @@ import { tinyws } from 'tinyws';
 const CardType = {
     RED: "red",
     BLUE: "blue",
+    WILD: "wild",
     NEUTRAL: "neutral",
     ASSASSIN: "assassin"
 }
@@ -25,17 +26,6 @@ export const Role = {
 
 // LOAD WORDLIST
 const wordlist = fs.readFileSync("wordlist.txt", "utf-8").split("\n");
-
-// LOAD BOARDS
-const cardTypeEncoding = {
-    "R": CardType.RED,
-    "B": CardType.BLUE,
-    "N": CardType.NEUTRAL,
-    "A": CardType.ASSASSIN
-}
-const boards = fs.readFileSync("board.txt", "utf-8")
-    .split("\n")
-    .map(line => line.split(" ").map(char => cardTypeEncoding[char]));
 
 // SQLITE
 console.log("connecting to database");
@@ -57,7 +47,7 @@ const serverOptions = {
 const app = express()
 app.use(tinyws())
 
-const wsClients = new Set();
+const wsClients = new Map();
 
 app
     .use(bodyParser.urlencoded({ limit: "200mb", extended: false }))
@@ -76,88 +66,68 @@ app
         console.log(`joining room ${roomName}`)
 
         const ws = await req.ws();
-        wsClients.add({ roomId: room.id, team, ws });
+        wsClients.set(room.id, [...(wsClients.get(room.id) || []), { ws, team }]);
 
         const broadcast = (roomId, type, data) => {
-            for (const { roomId: r, ws } of wsClients) {
-                if (r === roomId) {
-                    ws.send(JSON.stringify({ type, data }));
-                }
+            for (const { ws } of wsClients.get(roomId)) {
+                ws.send(JSON.stringify({ type, data }));
             }
         }
 
         // sending initial state
         ws.send(JSON.stringify({ type: "update-state", data: { state: room.state, roomId: room.id } }));
 
+        // client sends message to server
         ws.on("message", async (msg) => {
             const { type, roomId, team, ...data } = JSON.parse(msg);
+            const otherTeam = team === Team.RED ? Team.BLUE : Team.RED;
 
             console.log("received message", type, roomId, team, data)
             room = db.prepare(`SELECT * FROM rooms WHERE name = ?`).get(roomName);
             let state = JSON.parse(room.state);
-            let changeTurn = false;
 
             // add message to log
-            state.log.unshift({ team, type, data });
 
             switch (type) {
-                case "reveal-card": {
-                    const { word } = data;
+                case "submit-code": {
+                    const { code } = data;
 
-                    // find and reveal card
-                    const card = state.cards.find(card => card.word === word);
-                    card.revealed = true;
+                    const card = state.cards.find(card => (card.location != null && card.location.code === code));
+                    if (!card || card.revealed) return;
+                    card.revealed = team;
 
-                    // check if we opened the assassin
-                    if (card.type === CardType.ASSASSIN) {
-                        state.ended = true;
+                    // check win conditions
+                    const teamCards = (team) => state.cards.filter((c) => (c.type == team && c.revealed) || (c.type == CardType.WILD && c.revealed == team)).length
+                    const teamScore = (team) => teamCards(team) - state.hints[team].length
+
+                    if (teamCards(Team.RED) >= 8 && teamCards(Team.BLUE) >= 8) {
+                        if (teamScore(Team.RED) > teamScore(Team.BLUE)) {
+                            state.winner = Team.RED;
+                        } else if (teamScore(Team.RED) < teamScore(Team.BLUE)) {
+                            state.winner = Team.BLUE;
+                        } else {
+                            state.winner = "draw";
+                        }
+                        return;
                     }
 
-                    // if we 
-                    //   - opened a neutral card or the other team's card, or
-                    //   - it was the last guess
-                    // change turn
-                    if (card.type !== state.turn.team || parseInt(state.turn.param) == 1) {
-                        changeTurn = true
-                    } else {
-                        // decrease number of remaining guesses
-                        state.turn.param = parseInt(state.turn.param) - 1;
-                    }
 
-                    break
-                }
-                case "end-turn": {
-                    changeTurn = true;
+                    state.log.unshift({ team, type, data: { word: card.word } });
+
                     break
                 }
                 case "submit-hint": {
                     const { clue, number } = data;
-
-                    state.hints[team].push({ clue, number });
-                    state.turn.param = parseInt(number) + 1;
-
-                    changeTurn = true;
+                    state.log.unshift({ team, type, data });
+                    state.hints[team].unshift({ clue, number });
                     break
-                }
-            }
-
-            if (changeTurn) {
-                switch (state.turn.role) {
-                    case Role.SPYMASTER:
-                        state.turn.role = Role.OPERATIVE;
-                        break
-                    case Role.OPERATIVE:
-                        state.turn.role = Role.SPYMASTER;
-                        state.turn.team = state.turn.team === Team.RED ? Team.BLUE : Team.RED;
-                        state.turn.param = 0;
-                        break
                 }
             }
 
             db.prepare(`UPDATE rooms SET state = ? WHERE id = ?`)
                 .run(JSON.stringify(state), roomId)
 
-            console.log("update-state", type, roomId, team, state.turn)
+            console.log("update-state", type, roomId, team)
             broadcast(roomId, "update-state", { state: JSON.stringify(state) })
         })
 
@@ -176,22 +146,30 @@ app
         if (room == undefined) {
             // choose 25 random words from wordlist
             const words = wordlist.sort(() => Math.random() - 0.5).slice(0, 25);
+            const locations = JSON.parse(fs.readFileSync("locations.json", "utf-8")).sort(() => Math.random() - 0.5);
+            console.log(locations)
 
-            // choose board
-            const boardIndex = Math.floor(Math.random() * boards.length);
-            const board = boards[boardIndex];
+            // generate board, 9 red, 9 blue, 3 wild, 4 neutral
+            const board = [
+                ...Array(9).fill(CardType.RED),
+                ...Array(9).fill(CardType.BLUE),
+                ...Array(3).fill(CardType.WILD),
+                ...Array(4).fill(CardType.NEUTRAL),
+            ].sort(() => Math.random() - 0.5);
 
             // define cards
             const cards = words.map((word, i) => ({
                 word,
                 type: board[i],
-                revealed: false
+                revealed: false,
+                location: i < locations.length ? locations[i] : null
             }))
 
             const state = {
                 cards,
                 hints: { red: [], blue: [] },
-                turn: { team: Team.RED, role: Role.SPYMASTER, param: 0 },
+                // cob: remove
+                // turn: { team: Team.RED, role: Role.SPYMASTER, param: 0 },
                 log: []
             }
 
@@ -213,7 +191,6 @@ app
     .post("/update-locations", async (req, res) => {
         console.log(req.body.locations)
         const locations = JSON.parse(req.body.locations);
-        
 
         // write locations.json file
         fs.writeFileSync("locations.json", JSON.stringify(locations));

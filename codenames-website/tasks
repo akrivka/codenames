@@ -13,7 +13,8 @@ FORK
   - screenshot OSM
   - decide whether to use a database or a file
   - write a simple admin board
-- try a simple static map with pinpoints using absolute positions
+- make create room assign locations too
+- make a simple static map view
 - custom card reveal flow
   - codes for location
 

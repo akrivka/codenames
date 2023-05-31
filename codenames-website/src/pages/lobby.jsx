@@ -20,14 +20,15 @@ function RoleButton({ team, role }) {
 }
 
 export default function Lobby() {
-  if (localStorage.roomName == useParams().roomName) {
+  const params = useParams();
+  if (localStorage.roomName == params.roomName) {
     return <Game team={localStorage.team} role={localStorage.role} />
   }
   return <>
     <BackButton />
     <div class="w-full">
       <div class="w-[400px] mx-auto mt-16 flex flex-col items-center space-y-4">
-        <div> Room: {useParams().roomName}
+        <div> Room: {params.roomName}
         </div>
         <div class="text-gray-100 text-[10px] italic">Join as...</div>
         <div class="w-full flex">
