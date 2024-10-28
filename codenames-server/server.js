@@ -85,6 +85,7 @@ app
             console.log("received message", type, roomId, team, data)
             room = db.prepare(`SELECT * FROM rooms WHERE name = ?`).get(roomName);
             let state = JSON.parse(room.state);
+            if (state.winner) return;
 
             // add message to log
 
@@ -92,15 +93,16 @@ app
                 case "submit-code": {
                     const { code } = data;
 
-                    const card = state.cards.find(card => (card.location != null && card.location.code === code));
+                    const card = state.cards.find(card => (card.location != null && card.location.code.trim().toLowerCase() === code.trim().toLowerCase()));
                     if (!card || card.revealed) return;
                     card.revealed = team;
 
                     // check win conditions
                     const teamCards = (team) => state.cards.filter((c) => (c.type == team && c.revealed) || (c.type == CardType.WILD && c.revealed == team)).length
-                    const teamScore = (team) => teamCards(team) - state.hints[team].length
+                    const teamScore = (team) => -state.hints[team].length
 
-                    if (teamCards(Team.RED) >= 8 && teamCards(Team.BLUE) >= 8) {
+                    if (teamCards(Team.RED) >= 10 && teamCards(Team.BLUE) >= 10) {
+                        console.log("win!")
                         if (teamScore(Team.RED) > teamScore(Team.BLUE)) {
                             state.winner = Team.RED;
                         } else if (teamScore(Team.RED) < teamScore(Team.BLUE)) {
@@ -108,7 +110,6 @@ app
                         } else {
                             state.winner = "draw";
                         }
-                        return;
                     }
 
 
@@ -170,7 +171,8 @@ app
                 hints: { red: [], blue: [] },
                 // cob: remove
                 // turn: { team: Team.RED, role: Role.SPYMASTER, param: 0 },
-                log: []
+                log: [],
+                winner: null
             }
 
             db.prepare(`INSERT INTO rooms (name, state) VALUES (?, ?)`)

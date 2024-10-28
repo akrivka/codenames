@@ -1,8 +1,7 @@
 import mapUrl from '../assets/map.png'
 import { Team, Role, CardBgColor, CardTextColor, BackButton, CardType } from "../index.jsx";
-import { createSignal, onMount, For, Show, Switch } from "solid-js";
+import { createSignal, onMount, For, Show, Switch, createEffect } from "solid-js";
 import { createStore } from "solid-js/store";
-import { useParams } from "@solidjs/router"
 import { baseUrl } from "../index.jsx";
 import axios from "axios";
 
@@ -42,9 +41,9 @@ function MapCard(props) {
 function Card(props) {
   const colorClass = () => ((props.role == Role.SPYMASTER) || props.card.revealed) ? CardBgColor[props.card.type] : "bg-gray-400"
 
-  return <div class={`relative w-full h-12 p-1.5 rounded-sm shadow ${colorClass()} ${props.selected && "outline outline-orange-500"}`}
+  return <div class={`relative w-full h-12 py-1.5 px-1 rounded-sm shadow ${colorClass()} ${props.selected && "outline outline-orange-500"}`}
     onClick={props.select}>
-    <span class="font-semibold tracking-wider text-[12px] break-words">{props.card.word}</span>
+    <span class="font-semibold tracking-wider text-[10px] break-words">{props.card.word}</span>
     <Show when={props.role == Role.SPYMASTER && props.card.revealed}>
       <div class="absolute left-0 top-0 w-full h-full bg-gray-700/80 z-10 "></div>
     </Show>
@@ -56,13 +55,14 @@ function CardInfo(props) {
   return <div class="border rounded p-2 bg-rose-900">
     <div class="flex">
       <div class="w-2/3">
+        <div class="text-[10px] italic text-gray-300">Word</div>
         <div class="font-bold">{props.card.word}</div>
-        <div class="h-2" />
-        <div class="text-[10px] italic text-gray-300">Name</div>
+        <div class="h-4" />
+        <div class="text-[10px] italic text-gray-300">Location</div>
         <div class="text-sm">{props.card.location.name}</div>
         <div class="h-2" />
         <div class="text-[10px] italic text-gray-300">Description</div>
-        <div class="text-sm">{props.card.location.description}</div>
+        <div class="text-xs">{props.card.location.description}</div>
         <div class="h-1" />
       </div>
       <div class="relative w-1/3" onclick={() => props.mapBlowup()}>
@@ -152,12 +152,12 @@ function HintTable(props) {
     <div class="flex">
       <div class="w-1/2">
         <For each={props.hints[props.team]}>
-          {({ clue, number }, i) => <div class={i() % 2 == 0 ? primaryColor[props.team] : secondaryColor[props.team]}>{clue} {number}</div>}
+          {({ clue, number }, i) => <div class={`pl-1 ${i() % 2 == 0 ? primaryColor[props.team] : secondaryColor[props.team]}`}>{clue} {number}</div>}
         </For>
       </div>
       <div class="w-1/2">
         <For each={props.hints[otherTeam]}>
-          {({ clue, number }, i) => <div class={i() % 2 == 0 ? primaryColor[otherTeam] : secondaryColor[otherTeam]}>{clue} {number}</div>}
+          {({ clue, number }, i) => <div class={`pl-1 ${i() % 2 == 0 ? primaryColor[otherTeam] : secondaryColor[otherTeam]}`}>{clue} {number}</div>}
         </For>
       </div>
     </div>
@@ -166,10 +166,10 @@ function HintTable(props) {
 
 export default function Game(props) {
   // MAIN GAME IDENTIFIERS
-  const roomName = useParams().roomName
-  const team = props.team
-  const role = props.role
-  const user = document.getElementById("username")?.value
+  const roomName = props.user.roomName
+  const team = props.user.team
+  const role = props.user.role
+  console.log(roomName, team, role)
   let roomId = null
 
   // GAME STATE
@@ -219,7 +219,8 @@ export default function Game(props) {
           setTurn(state.turn)
           setHints(state.hints);
           setLog(state.log)
-          setWinner((state.winner && state.winner) != null ? state.winner : null)
+          setWinner((state.winner && state.winner != null) ? state.winner : null)
+          console.log(state)
           setStateLoaded(true)
           if (data.roomId) roomId = data.roomId
           break;
@@ -274,10 +275,11 @@ export default function Game(props) {
 
   return <Show when={stateLoaded()} fallback="Loading...">
     <Show when={!mapFullscreen()} fallback={<MapFullscreen goBack={() => setMapFullscreen(false)} card={selected()} />}>
-      <BackButton />
+      <BackButton back={props.back} />
       <div class="pt-8 px-1">
         <div class="flex justify-between items-center">
           <div>
+            Room name: {roomName}
             <div class="uppercase text-lg pr-2">
               {team} {role}
             </div>
@@ -291,7 +293,7 @@ export default function Game(props) {
             <div class="text-[32px] font-semibold">
               <span class="text-red-600">{teamCards(Team.RED)}/{hints[Team.RED].length}</span> : <span class="text-blue-600">{teamCards(Team.BLUE)}/{hints[Team.BLUE].length}</span>
             </div>
-            <div class="text-gray-300 italic text-[10px]">Lowest number of hints to 8 cards wins</div>
+            <div class="text-gray-300 italic text-[10px]">Lowest number of hints to 10 cards wins</div>
           </div>
         </div>
         <div class="px-6 my-2 h-[1px] w-full bg-gray-300" />
@@ -307,9 +309,11 @@ export default function Game(props) {
                 <div class="w-full text-center font-bold h-16 text-[24px]">
                   {winner() == "draw" ? "Game ended in a draw." : winner() == team ? "Game ended. You won!" : "Game ended. You lost."}
                 </div>
-                <Match when={teamCards(team) >= team}>
-                  Waiting for the other team to reach 8 cards.
-                </Match>
+              </Match>
+              <Match when={teamCards(team) >= 10}>
+                <div class="w-full text-center font-bold h-16 text-[24px]">
+                  Waiting for the other team to reach 10 cards.
+                </div>
               </Match>
               <Match when={role == Role.OPERATIVE}>
                 <div class="flex justify-center space-x-1">
@@ -320,7 +324,7 @@ export default function Game(props) {
               <Match when={role == Role.SPYMASTER}>
                 <div class="w-full p-1 flex">
                   <div class="w-1/2 flex flex-col items-center space-y-2">
-                    <input id="clue" class="w-56" type="text" onKeyUp={(e) => {
+                    <input id="clue" class="w-36" type="text" onKeyUp={(e) => {
                       if (e.key === "Enter") submitHint()
                       else setClue(e.target.value)
                     }} placeholder="Clue..." />
